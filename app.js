@@ -39,9 +39,7 @@ function uniqueCharacters(str) {
 const storedString = [];
 
 
-app.get('/strings', (req, res) => {
-  res.status(200).json(storedString);
-})
+
 
 app.post('/strings', (req, res) => {
   const { value } = req.body;
