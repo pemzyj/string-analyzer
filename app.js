@@ -1,7 +1,7 @@
 import express, { urlencoded } from 'express';
 import crypto from 'crypto';
 import 'dotenv/config';
-import nlp from 'compromise';
+
 
 
 const app = express();
@@ -151,48 +151,43 @@ app.get('/strings/filter-by-natural-language', (req, res) => {
     return res.status(400).json({ error: 'Missing natural language query' });
   }
 
-  const doc = nlp(query.toLowerCase().trim());
-  const terms = doc.terms().out('array');
-  const numbers = doc.numbers().toNumber().out('array');
-  const filters = {};
+  const lowerQuery = query.toLowerCase().trim();
+  let filters = {};
 
-  // --- Palindrome detection ---
-  if (doc.has('palindrome') || doc.has('palindromic')) {
+  if (lowerQuery.includes('palindromic') || lowerQuery.includes('palindrome')) {
     filters.is_palindrome = true;
   }
 
-  // --- Word count detection (single word, two words, etc.) ---
-  if (doc.has('single word')) {
+  if (lowerQuery.includes('single word')) {
     filters.word_count = 1;
-  } else if (numbers.length && doc.has('word')) {
-    filters.word_count = parseInt(numbers[0]);
+  } else if (lowerQuery.match(/(\d+)\s*words?/)) {
+    const match = lowerQuery.match(/(\d+)\s*words?/);
+    filters.word_count = parseInt(match[1]);
   }
 
-  // --- Character length detection ---
-  if (doc.has('longer than') && numbers.length) {
-    filters.min_length = numbers[0] + 1;
-  }
-  if (doc.has('shorter than') && numbers.length) {
-    filters.max_length = numbers[0] - 1;
+  if (lowerQuery.match(/longer than (\d+) characters?/)) {
+    const match = lowerQuery.match(/longer than (\d+) characters?/);
+    filters.min_length = parseInt(match[1]) + 1;
   }
 
-  // --- Contains letter detection ---
-  const letterMatch = query.match(/letter\s+([a-z])/i);
-  if (letterMatch) {
-    filters.contains_character = letterMatch[1].toLowerCase();
+  if (lowerQuery.match(/shorter than (\d+) characters?/)) {
+    const match = lowerQuery.match(/shorter than (\d+) characters?/);
+    filters.max_length = parseInt(match[1]) - 1;
   }
 
-  // --- “First vowel” heuristic ---
-  if (doc.has('first vowel')) {
+  if (lowerQuery.match(/containing the letter ([a-z])/)) {
+    const match = lowerQuery.match(/containing the letter ([a-z])/);
+    filters.contains_character = match[1];
+  }
+
+  if (lowerQuery.includes('first vowel')) {
     filters.contains_character = 'a';
   }
 
-  // --- Error handling for no parsed filters ---
   if (Object.keys(filters).length === 0) {
     return res.status(400).json({ error: 'Unable to parse natural language query' });
   }
 
-  // --- Apply parsed filters (reuse your existing logic here) ---
   let results = storedString;
 
   if (filters.is_palindrome !== undefined) {
@@ -225,6 +220,8 @@ app.get('/strings/filter-by-natural-language', (req, res) => {
     }
   });
 });
+
+
 
 
 
